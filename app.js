@@ -60,13 +60,24 @@ app.use('/api/exercise/new-user', (req, res, next) => {
   const username = req.body.username
   User.find({username}, (err, result) => {
     if (err) {
-      console.log(err);
+      res.send(err);
     } else {
       if (result.length === 0) {
         next();
       } else {
         res.send('duplicate username not allowed');
       }
+    }
+  })
+})
+
+app.use('/api/exercise/log', (req,res,next) => {
+  const _id = req.query.userId;
+  User.findById({_id}, (err, result) => {
+    if(err) {
+      res.send('User not found');
+    } else {
+      next();
     }
   })
 })
@@ -88,7 +99,11 @@ app.get('/api/exercise/log', (req,res) => {
     userId,
     date: {$gt: from, $lt: to},
   }, {}, {limit}, (err,result) => {
-    res.send(result);
+    if(err) {
+      res.send(err);
+    } else {
+      res.send(result);
+    }
   })
 })
 
@@ -96,7 +111,7 @@ app.post('/api/exercise/new-user', (req,res) => {
   const username = req.body.username;
   User.create({username}, (err,user) => {
     if (err) {
-      console.log(err);
+      res.send(err);
     } else {
       res.send(user);
     }
@@ -112,7 +127,7 @@ app.post('/api/exercise/add', (req,res) => {
     } else {
       Exercise.create({userId: _id, username: user.username, description, duration, date}, (err, exercise) => {
         if (err) {
-          console.log(err);
+          res.send(err);
         } else {
           res.send(`{"userId": "${_id}", "username": "${user.username}", "description": "${description}", "duration": "${duration}", "date": "${dateFromNumber(date)}"}`);
         }
