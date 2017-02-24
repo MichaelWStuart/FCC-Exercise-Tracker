@@ -21,14 +21,38 @@ mongoose.connect(dbURL, (err, database) => {
   })
 })
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({username: String});
+
+const exerciseSchema = new mongoose.Schema({
+  userId: String,
   username: String,
   description: String,
   duration: Number,
-  date: String
-})
+  date: Number
+});
 
 const User = mongoose.model('User', userSchema);
+
+const Exercise = mongoose.model('Exercise', exerciseSchema);
+
+const dateToNumber = (date) => {
+  if(date) {
+    const year = date.slice(0,4);
+    const month = date.slice(5,7);
+    const day = date.slice(8);
+    return Number(year + month + day);
+  } else {
+    return null;
+  }
+}
+
+const dateFromNumber = (date) => {
+  let newDate = date.toString();
+  const year = newDate.slice(0,4);
+  const month = newDate.slice(4,6);
+  const day = newDate.slice(6);
+  return `${year}-${month}-${day}`;
+}
 
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -55,6 +79,19 @@ app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'favicon.ico'));
 });
 
+app.get('/api/exercise/log', (req,res) => {
+  const userId = req.query.userId
+  const from = dateToNumber(req.query.from) || 0;
+  const to = dateToNumber(req.query.to) || 99999999;
+  const limit = (Math.abs(0 - (req.query.limit || 0)));
+  Exercise.find({
+    userId,
+    date: {$gt: from, $lt: to},
+  }, {}, {limit}, (err,result) => {
+    res.send(result);
+  })
+})
+
 app.post('/api/exercise/new-user', (req,res) => {
   const username = req.body.username;
   User.create({username}, (err,user) => {
@@ -67,12 +104,19 @@ app.post('/api/exercise/new-user', (req,res) => {
 })
 
 app.post('/api/exercise/add', (req,res) => {
-  const {_id, description, duration, date} = req.body;
-  User.findByIdAndUpdate(_id, {description,duration,date}, (err, exercise) => {
+  let {_id, description, duration, date} = req.body;
+  date = dateToNumber(date);
+  User.findById(_id, (err, user) => {
     if (err) {
-      console.log(err)
+      res.send('user ID not found')
     } else {
-      res.send(`{username: ${exercise.username}, description: ${description}, duration: ${duration}, date: ${date}}`);
+      Exercise.create({userId: _id, username: user.username, description, duration, date}, (err, exercise) => {
+        if (err) {
+          console.log(err);
+        } else {
+          res.send(`{"userId": "${_id}", "username": "${user.username}", "description": "${description}", "duration": "${duration}", "date": "${dateFromNumber(date)}"}`);
+        }
+      })
     }
   })
 })
